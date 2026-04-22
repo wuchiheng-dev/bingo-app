@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>賓果模擬</title>
+
+<link rel="manifest" href="/manifest.json">
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial;
+    background: #111;
+    color: white;
+    text-align: center;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 5px;
+    padding: 10px;
+}
+
+.num {
+    background: #333;
+    padding: 10px;
+    border-radius: 50%;
+}
+
+.selected {
+    background: orange;
+}
+
+button {
+    padding: 12px;
+    margin: 5px;
+    width: 90%;
+    font-size: 16px;
+}
+
+.result {
+    margin: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<h3>🎯 賓果賓果模擬</h3>
+
+<div class="grid" id="grid"></div>
+
+<input type="number" id="count" value="5" min="1" max="10">
+
+<button onclick="autoPick()">⚡ 一鍵選號</button>
+<button onclick="simulate()">🎰 模擬開獎</button>
+
+<div class="result" id="result"></div>
+
+<script>
+// ===== 建立80格 =====
+let selected = new Set()
+
+for (let i = 1; i <= 80; i++) {
+    let div = document.createElement("div")
+    div.className = "num"
+    div.innerText = i
+
+    div.onclick = () => {
+        if (selected.has(i)) {
+            selected.delete(i)
+            div.classList.remove("selected")
+        } else {
+            if (selected.size >= 10) return
+            selected.add(i)
+            div.classList.add("selected")
+        }
+    }
+
+    document.getElementById("grid").appendChild(div)
+}
+
+// ===== 一鍵選號 =====
+function autoPick() {
+    let count = document.getElementById("count").value
+
+    fetch("/pick", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({count: count})
+    })
+    .then(res => res.json())
+    .then(data => {
+        selected.clear()
+        document.querySelectorAll(".num").forEach(n => n.classList.remove("selected"))
+
+        data.forEach(n => {
+            selected.add(n)
+            document.querySelectorAll(".num")[n-1].classList.add("selected")
+        })
+    })
+}
+
+// ===== 模擬開獎 =====
+function simulate() {
+    fetch("/draw", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({nums: Array.from(selected)})
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("result").innerText =
+            "開獎：" + data.draw.join(", ") +
+            "\n命中：" + data.hits + " 個"
+    })
+}
+
+// ===== 註冊 Service Worker =====
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/static/sw.js")
+}
+</script>
+
+</body>
+</html>
